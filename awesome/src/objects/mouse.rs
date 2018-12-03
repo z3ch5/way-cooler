@@ -5,7 +5,9 @@
 
 use std::default::Default;
 
-use rlua::{self, AnyUserData, Lua, MetaMethod, Table, UserData, UserDataMethods, Value};
+use rlua::{self, AnyUserData, Lua, MetaMethod, Table, ToLua, UserData, UserDataMethods, Value};
+
+use objects::screen::{Screen, SCREENS_HANDLE};
 
 const INDEX_MISS_FUNCTION: &'static str = "__index_miss_function";
 const NEWINDEX_MISS_FUNCTION: &'static str = "__newindex_miss_function";
@@ -64,34 +66,32 @@ fn set_newindex_miss(lua: &Lua, func: rlua::Function) -> rlua::Result<()> {
     table.set(NEWINDEX_MISS_FUNCTION, func)
 }
 
-fn index<'lua>(_lua: &'lua Lua,
+fn index<'lua>(lua: &'lua Lua,
                (mouse, index): (AnyUserData<'lua>, Value<'lua>))
                -> rlua::Result<Value<'lua>>
 {
     let obj_table = mouse.get_user_value::<Table>()?;
     if let Value::String(ref string) = index {
         if string.to_str()? == "screen" {
-            // TODO Get output
-            let _output = unimplemented!();
-
-            // let mut screens: Vec<Screen> = lua
-            // .named_registry_value::<Vec<AnyUserData>>(SCREENS_HANDLE)?
-            // .into_iter()
-            // .map(|obj| Screen::cast(obj.into()).unwrap())
-            // .collect();
-            //
+            let mut screens: Vec<Screen> =
+                lua.named_registry_value::<Vec<AnyUserData>>(SCREENS_HANDLE)?
+                   .into_iter()
+                   .map(|obj| Screen::cast(obj.into()).unwrap())
+                   .collect();
+            // TODO Focus on the output with the cursor on it.
             // if let Some(output) = output {
-            // for screen in &screens {
-            // if screen.state()?.outputs.contains(&output) {
-            // return screen.clone().to_lua(lua);
-            // }
-            // }
-            // }
-            // if screens.len() > 0 {
-            // return screens[0].clone().to_lua(lua)
-            // }
-            //
-            // return Ok(Value::Nil)
+            //    for screen in &screens {
+            //        if screen.state()?.outputs.contains(&output) {
+            //            return screen.clone().to_lua(lua);
+            //        }
+            //    }
+            //}
+            if screens.len() > 0 {
+                return screens[0].clone().to_lua(lua)
+            }
+            // TODO Nothing ever handles mouse.screen being nil.
+            // Lying is better than having lots of Lua errors.
+            return Ok(Value::Nil)
         }
     }
     return obj_table.get(index)
