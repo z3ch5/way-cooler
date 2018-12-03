@@ -161,8 +161,7 @@ wait_until_success() {
             fi
             if [ -f "$compositor_log" ]; then
                 echo "Compositor Log:" >&2
-                # TODO renable
-                #cat "$compositor_log" >&2
+                cat "$compositor_log" >&2
                 echo >&2
             fi
             exit 1
