@@ -4,10 +4,12 @@
 // NOTE need to store the drawable in lua, because it's a reference to a
 // drawable a lua object
 
-use cairo::ImageSurface;
-use rlua::{self, prelude::LuaInteger, Table, ToLua, UserData, UserDataMethods};
+use std::convert::TryFrom;
 
-use crate::area::{Area, Origin, Size};
+use cairo::ImageSurface;
+use rlua::{self, prelude::LuaInteger, Context, Table, ToLua, UserData, UserDataMethods, Value};
+
+use crate::area::{Area, Margin, Origin, Size};
 use crate::common::{
     class::{self, Class, ClassBuilder},
     object::{self, Object, ObjectBuilder},
@@ -297,14 +299,14 @@ fn set_height<'lua>(
     Ok(())
 }
 
-fn drawin_struts<'lua>(lua: rlua::Context<'lua>, _drawin: Drawin<'lua>) -> rlua::Result<Table<'lua>> {
+fn drawin_struts<'lua>(
+    lua: Context<'lua>,
+    (_drawin, _struts): (Drawin<'lua>, Option<Margin<'lua>>)
+) -> rlua::Result<Value<'lua>> {
     // TODO: Implement this properly. Struts means this drawin reserves some space
     // on the screen that it is visible on, shrinking the workarea in the
     // specified directions.
-    let res = lua.create_table()?;
-    res.set("left", 0)?;
-    res.set("right", 0)?;
-    res.set("top", 0)?;
-    res.set("bottom", 0)?;
-    Ok(res)
+    let struts: Option<Margin> = _struts.map(Margin::try_from).transpose()?;
+    let struts = struts.unwrap_or_default();
+    struts.to_lua(lua)
 }

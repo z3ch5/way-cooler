@@ -1,5 +1,9 @@
 //! Utility methods and structures
 
+use std::convert::TryFrom;
+
+use rlua::{self, FromLua, ToLua};
+
 #[derive(Debug, Clone, Copy, Default, Eq, PartialEq, Ord, PartialOrd)]
 /// Generic geometry-like struct. Contains an origin (x, y) point and bounds
 /// (width, height).
@@ -48,6 +52,51 @@ impl Into<Area> for Size {
         Area {
             size: self,
             ..Default::default()
+        }
+    }
+}
+
+#[derive(Debug, Default, Clone, Copy, Eq, PartialEq, Ord, PartialOrd)]
+pub struct Margin {
+    top: i32,
+    right: i32,
+    bottom: i32,
+    left: i32
+}
+
+impl TryFrom<rlua::Table<'_>> for Margin {
+    type Error = rlua::Error;
+    fn try_from(src: rlua::Table) -> rlua::Result<Self> {
+        Ok(Margin {
+            left: src.get("left")?,
+            right: src.get("right")?,
+            top: src.get("top")?,
+            bottom: src.get("bottom")?
+        })
+    }
+}
+
+impl<'lua> ToLua<'lua> for Margin {
+    fn to_lua(self, lua: rlua::Context<'lua>) -> rlua::Result<rlua::Value<'lua>> {
+        let res = lua.create_table()?;
+        res.set("left", self.left)?;
+        res.set("right", self.right)?;
+        res.set("top", self.top)?;
+        res.set("bottom", self.bottom)?;
+        Ok(rlua::Value::Table(res))
+    }
+}
+
+impl<'lua> FromLua<'lua> for Margin {
+    fn from_lua(lua_value: rlua::Value<'lua>, _lua: rlua::Context<'lua>) -> rlua::Result<Self> {
+        if let rlua::Value::Table(table) = lua_value {
+            Margin::try_from(table)
+        } else {
+            Err(rlua::Error::FromLuaConversionError {
+                from: "something else",
+                to: "Margin",
+                message: Some(format!("got: {:?}", lua_value))
+            })
         }
     }
 }
