@@ -2,6 +2,7 @@
 
 mod output;
 mod wl_compositor;
+mod wl_seat;
 mod wl_shm;
 mod xdg_shell;
 
