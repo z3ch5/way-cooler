@@ -91,7 +91,7 @@ impl wl_output::EventHandler for WlOutputEventHandler {
         };
         LUA.with(|lua| {
             lua.borrow().context(|ctx| {
-                if let Ok(mut screen) = screen::get_screen(ctx, Output { output: object }) {
+                if let Ok(Some(mut screen)) = screen::get_screen(ctx, Output { output: object }) {
                     screen
                         .set_geometry(ctx, geometry)
                         .expect("could not set geometry");

@@ -175,7 +175,7 @@ impl<'lua, S: ObjectStateType> Class<'lua, S> {
             .ok_or_else(|| rlua::Error::RuntimeError("no metatable on screen class".to_string()))
     }
 
-    pub fn signals(&self) -> rlua::Result<rlua::Table<'lua>> {
+    fn signals(&self) -> rlua::Result<rlua::Table<'lua>> {
         self.metatable()?.get("signals")
     }
 
@@ -184,6 +184,18 @@ impl<'lua, S: ObjectStateType> Class<'lua, S> {
         (class, name, func): (Class<'lua, S>, String, Function<'lua>)
     ) -> rlua::Result<()> {
         signal::connect_signals(ctx, class.signals()?, &name, &[func])
+    }
+
+    pub(crate) fn emit_signal<A>(
+        lua: rlua::Context<'lua>,
+        class: &Class<'lua, S>,
+        name: &str,
+        args: A
+    ) -> rlua::Result<()>
+    where
+        A: ToLua<'lua> + Clone
+    {
+        signal::emit_signals(lua, class.signals()?, name, args)
     }
 }
 

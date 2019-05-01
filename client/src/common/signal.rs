@@ -10,7 +10,7 @@ use crate::GLOBAL_SIGNALS;
 
 /// Connects functions to a signal. Creates a new entry in the table if it
 /// doesn't exist.
-pub fn connect_signals<'lua>(
+pub(crate) fn connect_signals<'lua>(
     lua: rlua::Context<'lua>,
     signals: Table<'lua>,
     name: &str,
@@ -32,12 +32,12 @@ pub fn connect_signals<'lua>(
     }
 }
 
-pub fn disconnect_signals(_: rlua::Context, signals: Table, name: &str) -> rlua::Result<()> {
+pub(crate) fn disconnect_signals(_: rlua::Context, signals: Table, name: &str) -> rlua::Result<()> {
     signals.set(name, Value::Nil)
 }
 
 /// Evaluate the functions associated with a signal.
-pub fn emit_signals<'lua, A>(
+pub(crate) fn emit_signals<'lua, A>(
     _: rlua::Context<'lua>,
     signals: Table<'lua>,
     name: &str,
@@ -62,7 +62,7 @@ where
 }
 
 /// Connect the function to the named signal in the global signal list.
-pub fn global_connect_signal<'lua>(
+pub(crate) fn global_connect_signal<'lua>(
     lua: rlua::Context<'lua>,
     (name, func): (String, Function<'lua>)
 ) -> rlua::Result<()> {
@@ -71,13 +71,13 @@ pub fn global_connect_signal<'lua>(
 }
 
 /// Disconnect the function from the named signal in the global signal list.
-pub fn global_disconnect_signal<'lua>(lua: rlua::Context<'lua>, name: String) -> rlua::Result<()> {
+pub(crate) fn global_disconnect_signal<'lua>(lua: rlua::Context<'lua>, name: String) -> rlua::Result<()> {
     let global_signals = lua.named_registry_value::<str, Table>(GLOBAL_SIGNALS)?;
     disconnect_signals(lua, global_signals, &name)
 }
 
 /// Emit the signal with the given name from the global signal list.
-pub fn global_emit_signal<'lua>(
+pub(crate) fn global_emit_signal<'lua>(
     lua: rlua::Context<'lua>,
     (name, args): (String, Value<'lua>)
 ) -> rlua::Result<()> {

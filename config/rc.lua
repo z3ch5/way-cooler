@@ -111,13 +111,21 @@ myawesomemenu = {
    { "quit", function() awesome.quit() end}
 }
 
-mymainmenu = awful.menu({ items = { { "awesome", myawesomemenu, beautiful.awesome_icon },
+local mymainmenu_
+function mymainmenu()
+    mymainmenu_ = mymainmenu_ or awful.menu({ items = { { "awesome", myawesomemenu, beautiful.awesome_icon },
                                     { "open terminal", terminal }
                                   }
                         })
+    return mymainmenu_
+end
 
-mylauncher = awful.widget.launcher({ image = beautiful.awesome_icon,
-                                     menu = mymainmenu })
+local mylauncher_
+function mylauncher()
+    mylauncher_ = mylauncher_ or awful.widget.launcher({ image = beautiful.awesome_icon,
+                                     menu = mymainmenu() })
+    return mylauncher_
+end
 
 -- Menubar configuration
 menubar.utils.terminal = terminal -- Set the terminal for applications that require it
@@ -225,7 +233,7 @@ awful.screen.connect_for_each_screen(function(s)
         layout = wibox.layout.align.horizontal,
         { -- Left widgets
             layout = wibox.layout.fixed.horizontal,
-            mylauncher,
+            mylauncher(),
             s.mytaglist,
             s.mypromptbox,
         },
@@ -244,7 +252,7 @@ end)
 -- {{{ Mouse bindings
 -- @DOC_ROOT_BUTTONS@
 root.buttons(gears.table.join(
-    awful.button({ }, 3, function () mymainmenu:toggle() end),
+    awful.button({ }, 3, function () mymainmenu():toggle() end),
     awful.button({ }, 4, awful.tag.viewnext),
     awful.button({ }, 5, awful.tag.viewprev)
 ))
@@ -274,7 +282,7 @@ globalkeys = gears.table.join(
         end,
         {description = "focus previous by index", group = "client"}
     ),
-    awful.key({ modkey,           }, "w", function () mymainmenu:show() end,
+    awful.key({ modkey,           }, "w", function () mymainmenu():show() end,
               {description = "show main menu", group = "awesome"}),
 
     -- Layout manipulation

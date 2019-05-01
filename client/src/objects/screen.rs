@@ -136,14 +136,19 @@ impl<'lua> Screen<'lua> {
 /// Adds a screen to the list of screens.
 pub fn add_screen<'lua>(lua: rlua::Context<'lua>, screen: Screen<'lua>) -> rlua::Result<()> {
     let mut screens = lua.named_registry_value::<str, Vec<AnyUserData>>(SCREENS_HANDLE)?;
-    screens.push(screen.into());
+    screens.push(screen.clone().into());
     lua.set_named_registry_value(SCREENS_HANDLE, screens.to_lua(lua)?)?;
+
+    if let Err(err) = Class::emit_signal(lua, &screen.class()?, "added", screen) {
+        warn!("Error emitting screen::added event: {}", err);
+    }
+
     Ok(())
 }
 
 /// Find a screen based on the output.
-pub fn get_screen(lua: rlua::Context, output: Output) -> rlua::Result<Screen> {
-    lua.named_registry_value::<str, Vec<AnyUserData>>(SCREENS_HANDLE)?
+pub fn get_screen(lua: rlua::Context, output: Output) -> rlua::Result<Option<Screen>> {
+    Ok(lua.named_registry_value::<str, Vec<AnyUserData>>(SCREENS_HANDLE)?
         .into_iter()
         .map(|obj| Screen::cast(obj.into()).unwrap())
         // TODO Can there be multiple screens the output is associated with?
@@ -151,8 +156,7 @@ pub fn get_screen(lua: rlua::Context, output: Output) -> rlua::Result<Screen> {
         .find(|screen| {
             let state = screen.state().expect("Could not get screen state");
             state.outputs.iter().any(|cur_output| *cur_output == output)
-        })
-        .ok_or(rlua::Error::RuntimeError(format!("No screen with output {:?}", output)))
+        }))
 }
 
 pub fn init<'lua>(lua: rlua::Context<'lua>) -> rlua::Result<Class<ScreenState>> {
@@ -161,28 +165,6 @@ pub fn init<'lua>(lua: rlua::Context<'lua>) -> rlua::Result<Class<ScreenState>> 
         .save_class("screen")?
         .build()?;
     let screens: &mut Vec<Screen> = &mut vec![];
-    // TODO Get the list of outputs from Way Cooler
-    // for output in server.outputs.iter() {
-    //    let mut screen = Screen::new(lua)?;
-    //    screen.init_screens(output.clone(), vec![output.clone()])?;
-    //    // TODO Move to Screen impl like the others
-    //    screens.push(screen);
-    //}
-
-    // If no screens exist, fake one.
-    if screens.is_empty() {
-        let mut screen = Screen::new(lua)?;
-        {
-            let mut obj = screen.state_mut()?;
-            obj.geometry = Size {
-                width: 1024,
-                height: 768
-            }
-            .into();
-            obj.workarea = obj.geometry;
-        }
-        screens.push(screen);
-    }
 
     lua.set_named_registry_value(SCREENS_HANDLE, screens.clone().to_lua(lua)?)?;
     Ok(res)
