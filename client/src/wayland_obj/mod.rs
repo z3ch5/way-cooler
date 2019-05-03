@@ -12,7 +12,6 @@ pub(crate) use self::{
     wl_compositor::Surface,
     wl_shm::Buffer
 };
-mod xdg_shell;
 
 pub use self::{
     layer_shell::LayerSurface,
