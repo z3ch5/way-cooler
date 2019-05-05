@@ -6,8 +6,7 @@ mod utils;
 use self::config::{exec_config, load_config};
 pub use self::{config::log_error, utils::*};
 
-use glib::MainLoop;
-use rlua::{self, AnyUserData, Lua, Table, Value};
+use rlua::{self, AnyUserData, Context, Lua, Table, Value};
 
 use std::{
     cell::{Cell, RefCell},
@@ -44,9 +43,6 @@ thread_local! {
 
     /// If set then we have restarted the Lua thread. We need to replace LUA when it's not borrowed.
     pub static NEXT_LUA: Cell<bool> = Cell::new(false);
-
-    /// Main GLib loop
-    static MAIN_LOOP: RefCell<MainLoop> = RefCell::new(MainLoop::new(None, false));
 }
 
 /// Loads shim code to act like Awesome.
@@ -85,16 +81,47 @@ fn load_shims(lua: rlua::Context) {
     }
 }
 
-/// Sets up the Lua environment for the user code.
-///
-/// This environment is also necessary for some Wayland callbacks,
-/// so it should be called as soon as possible.
-pub fn init_awesome_libraries(lib_paths: &[&str]) {
-    info!("Setting up Awesome libraries");
-    LUA.with(|lua| {
-        lua.borrow()
-            .context(|ctx| register_libraries(ctx, lib_paths).expect("Could not register lua libraries"));
-    });
+pub struct WaylandHandler {}
+
+impl WaylandHandler {
+    fn with_lua<R>(func: impl FnOnce(Context) -> R) -> R {
+        LUA.with(|lua| lua.borrow().context(|ctx| func(ctx)))
+    }
+}
+
+impl crate::wayland_obj::OutputEventHandler for WaylandHandler {
+    fn output_changed(&self, output: crate::wayland_obj::Output) {
+        Self::with_lua(|lua| {
+            use crate::area::{Area, Origin, Size};
+            use crate::objects::screen::{add_screen, get_screen, Screen};
+            let screen = get_screen(lua, output.clone()).expect("Error during screen lookup");
+
+            let (width, height) = output.resolution();
+            let geometry = Area {
+                origin: Origin { x: 0, y: 0 },
+                size: Size { width, height }
+            };
+
+            if let Some(mut screen) = screen {
+                screen
+                    .set_geometry(lua, geometry)
+                    .expect("could not set geometry");
+                screen
+                    .set_workarea(lua, geometry)
+                    .expect("could not set workarea ");
+            } else {
+                // TODO We may not always want to add a new screen
+                // see how awesome does it and fix this.
+                trace!("Allocating screen for new output");
+                let mut screen = Screen::new(lua).expect("Could not allocate new screen");
+                screen
+                    .init_screens(output.clone(), vec![output])
+                    .expect("Could not initilize new output with a screen");
+
+                add_screen(lua, screen).expect("Could not add screen to the list of screens");
+            }
+        })
+    }
 }
 
 /// Runs user code from the config through the awesome compatibility layer.
@@ -103,8 +130,10 @@ pub fn init_awesome_libraries(lib_paths: &[&str]) {
 pub fn run_awesome(lib_paths: &[&str], cmdline_path: Option<&str>) {
     LUA.with(|lua| {
         let mut lua = lua.borrow_mut();
-        info!("Loading Awesome configuration...");
         let regular_startup = lua.context(|ctx| {
+            register_libraries(ctx, lib_paths).expect("Could not register lua libraries");
+
+            info!("Loading Awesome configuration...");
             let (file_name, content) = load_config(ctx, cmdline_path).map_err(|err| {
                 warn!("Could not read init file: {}", err);
                 SyntaxCheckError::IoError(err)
@@ -130,25 +159,12 @@ pub fn run_awesome(lib_paths: &[&str], cmdline_path: Option<&str>) {
             })
         }
     });
-    enter_glib_loop();
 }
 
-fn emit_refresh(lua: rlua::Context) {
+pub fn emit_refresh(lua: rlua::Context) {
     if let Err(err) = signal::global_emit_signal(lua, ("refresh".to_owned(), Value::Nil)) {
         error!("Internal error while emitting 'refresh' signal: {}", err);
     }
-}
-
-/// Main loop of the Lua thread:
-///
-/// * Initialise the Lua state
-/// * Run a GMainLoop
-pub fn enter_glib_loop() {
-    MAIN_LOOP.with(|main_loop| main_loop.borrow().run());
-}
-
-pub fn terminate() {
-    MAIN_LOOP.with(|main_loop| main_loop.borrow().quit())
 }
 
 pub enum SyntaxCheckError {

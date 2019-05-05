@@ -1,18 +1,14 @@
 //! Wrapper around a wl_output
 
-use std::{cell::RefCell, fmt};
+use std::{cell::RefCell, fmt, rc::Rc};
 
 use wayland_client::{
     protocol::wl_output::{self, WlOutput},
     GlobalImplementor, NewProxy, Proxy
 };
 
-use crate::area::{Area, Origin, Size};
-use crate::lua::LUA;
-use crate::objects::screen::{self, Screen};
-
 /// The minimum version of the wl_output global to bind to.
-pub const WL_OUTPUT_VERSION: u32 = 2;
+pub(crate) const WL_OUTPUT_VERSION: u32 = 2;
 
 /// Wrapper around WlOutput.
 #[derive(Clone, Eq, PartialEq)]
@@ -20,16 +16,37 @@ pub struct Output {
     output: WlOutput
 }
 
+pub trait OutputEventHandler {
+    fn output_changed(&self, output: Output);
+}
+
+impl OutputEventHandler for Fn(Output) {
+    fn output_changed(&self, output: Output) {
+        (*self)(output);
+    }
+}
+
 // Provides new WlOutputs with an implementation.
-pub struct WlOutputManager {}
+pub(crate) struct WlOutputManager {
+    handler: Rc<dyn OutputEventHandler>
+}
+
+impl WlOutputManager {
+    pub fn new(handler: Rc<dyn OutputEventHandler>) -> Self {
+        WlOutputManager { handler }
+    }
+}
 
 // Handle incoming events for WlOutput.
-pub struct WlOutputEventHandler {}
+struct WlOutputEventHandler {
+    handler: Rc<dyn OutputEventHandler>
+}
 
 /// The cached state for the WlOutput.
 #[derive(Debug, Default, Clone, Eq, PartialEq)]
 struct OutputState {
     name: String,
+    // TODO(ried): use area::Size
     resolution: (u32, u32)
 }
 
@@ -45,20 +62,12 @@ impl Output {
 
 impl GlobalImplementor<WlOutput> for WlOutputManager {
     fn new_global(&mut self, new_proxy: NewProxy<WlOutput>) -> WlOutput {
-        let res = new_proxy.implement(WlOutputEventHandler {}, RefCell::new(OutputState::default()));
-
-        LUA.with(|lua| {
-            lua.borrow().context(|ctx| {
-                let output = Output { output: res.clone() };
-                let mut screen = Screen::new(ctx).expect("Could not allocate new screen");
-                screen
-                    .init_screens(output.clone(), vec![output])
-                    .expect("Could not initilize new output with a screen");
-                screen::add_screen(ctx, screen).expect("Could not add screen to the list of screens");
-            })
-        });
-
-        res
+        new_proxy.implement(
+            WlOutputEventHandler {
+                handler: self.handler.clone()
+            },
+            Rc::new(RefCell::new(OutputState::default()))
+        )
     }
 }
 
@@ -82,52 +91,31 @@ impl wl_output::EventHandler for WlOutputEventHandler {
     #[allow(unused)]
     fn mode(&mut self, object: WlOutput, flags: wl_output::Mode, width: i32, height: i32, refresh: i32) {
         unwrap_state(object.as_ref()).borrow_mut().resolution = (width as u32, height as u32);
-        let geometry = Area {
-            origin: Origin { x: 0, y: 0 },
-            size: Size {
-                width: width as u32,
-                height: height as u32
-            }
-        };
-        LUA.with(|lua| {
-            lua.borrow().context(|ctx| {
-                if let Ok(Some(mut screen)) = screen::get_screen(ctx, Output { output: object }) {
-                    screen
-                        .set_geometry(ctx, geometry)
-                        .expect("could not set geometry");
-                    screen
-                        .set_workarea(ctx, geometry)
-                        .expect("could not set workarea ");
-                }
-            });
-        });
     }
 
     #[allow(unused)]
     fn done(&mut self, object: WlOutput) {
-        // TODO We may not always want to add a new screen
-        // see how awesome does it and fix this.
-        LUA.with(|lua| {
-            lua.borrow().context(|ctx| {
-                let mut screen = Screen::new(ctx).expect("Could not allocate new screen");
-                let output = Output { output: object };
-                screen
-                    .init_screens(output.clone(), vec![output])
-                    .expect("Could not initilize new output with a screen");
-                screen::add_screen(ctx, screen).expect("Could not add screen to the list of screens");
-            });
-        });
+        self.handler.output_changed(Output { output: object });
     }
 
     #[allow(unused)]
     fn scale(&mut self, object: WlOutput, factor: i32) {
         // TODO
+        if factor != 1 {
+            unimplemented!("output scaling");
+        }
     }
 }
 
 impl fmt::Debug for Output {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "{:?}", self.output.as_ref().c_ptr())
+        write!(f, "{:?}", self.name())
+    }
+}
+
+impl AsRef<WlOutput> for Output {
+    fn as_ref(&self) -> &WlOutput {
+        &self.output
     }
 }
 
@@ -139,6 +127,6 @@ impl AsRef<Proxy<WlOutput>> for Output {
 
 fn unwrap_state(proxy: &Proxy<WlOutput>) -> &RefCell<OutputState> {
     proxy
-        .user_data::<RefCell<OutputState>>()
+        .user_data::<Rc<RefCell<OutputState>>>()
         .expect("User data has not been set yet")
 }

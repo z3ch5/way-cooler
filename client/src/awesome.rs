@@ -312,7 +312,7 @@ fn set_preferred_icon_size(lua: rlua::Context<'_>, val: u32) -> rlua::Result<()>
 }
 
 fn quit(_: rlua::Context<'_>, _: ()) -> rlua::Result<()> {
-    crate::lua::terminate();
+    crate::terminate();
     Ok(())
 }
 

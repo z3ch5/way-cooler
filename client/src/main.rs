@@ -58,6 +58,7 @@ mod root;
 mod wayland_obj;
 
 use std::{
+    cell::RefCell,
     env,
     io::{self, Write},
     mem,
@@ -68,22 +69,17 @@ use std::{
 
 use clap::{App, Arg};
 use exec::Command;
+use glib::MainLoop;
 use log::Level;
 use nix::sys::signal::{self, SaFlags, SigAction, SigHandler, SigSet};
 use rlua::{LightUserData, Table};
-use wayland_client::{
-    global_filter,
-    protocol::{wl_compositor, wl_output, wl_shm},
-    sys::client::wl_display,
-    ConnectError, Display, EventQueue, GlobalError, GlobalManager
-};
+use wayland_client::{sys::client::wl_display, Display, EventQueue, GlobalManager};
 use xcb::xkb;
 
 // So the C code can link to these Rust functions.
 pub use crate::dbus::{dbus_session_refresh, dbus_system_refresh};
 
 use crate::lua::{LUA, NEXT_LUA};
-pub use wayland_protocols::xdg_shell::client::xdg_wm_base;
 
 const GIT_VERSION: &'static str = include_str!(concat!(env!("OUT_DIR"), "/git-version.txt"));
 pub const GLOBAL_SIGNALS: &'static str = "__awesome_global_signals";
@@ -151,6 +147,22 @@ impl<'a> Into<&'a str> for AwesomeVersion {
             concat!("Awesome ", env!("CARGO_PKG_VERSION"))
         }
     }
+}
+
+thread_local! {
+    /// Main GLib loop
+    static MAIN_LOOP: RefCell<MainLoop> = RefCell::new(MainLoop::new(None, false));
+}
+
+/// Main loop:
+///
+/// * Run a GMainLoop
+pub fn enter_glib_loop() {
+    MAIN_LOOP.with(|main_loop| main_loop.borrow().run());
+}
+
+pub fn terminate() {
+    MAIN_LOOP.with(|main_loop| main_loop.borrow().quit())
 }
 
 fn main() {
@@ -229,86 +241,35 @@ fn main() {
         .values_of("lua lib search")
         .unwrap_or_default()
         .collect::<Vec<_>>();
-    lua::init_awesome_libraries(&lib_paths);
-    let (display, event_queue, _globals) = init_wayland();
+
+    let (display, mut event_queue) = wayland_obj::init_wayland();
     let (session_fd, system_fd) = dbus::connect().expect("Could not set up dbus connection");
-    init_glib(display, event_queue, session_fd, system_fd);
     let config = matches.value_of("config");
     lua::run_awesome(&lib_paths, config);
+
+    let (display, _globals) = run_wayland(display, &mut event_queue);
+
+    init_glib(display, event_queue, session_fd, system_fd);
+
+    // TODO(ried): hold off refresh until at least one screen is available
+    // (awesome does not like running headless)
+    LUA.with(|lua| {
+        let lua = lua.borrow();
+        lua.context(|ctx| lua::emit_refresh(ctx));
+    });
+
+    enter_glib_loop();
 }
 
-fn init_wayland() -> (Display, EventQueue, GlobalManager) {
-    let (display, mut event_queue) = Display::connect_to_env().unwrap_or_else(|err| {
-        match err {
-            ConnectError::NoWaylandLib => {
-                error!("Could not find Wayland library, is it installed and in PATH?")
-            },
-            ConnectError::NoCompositorListening => {
-                error!("Could not connect to Wayland server. Is it running?");
-                error!(
-                    "WAYLAND_DISPLAY={}",
-                    env::var("WAYLAND_DISPLAY").unwrap_or_else(|_| "".into())
-                );
-            },
-            ConnectError::InvalidName => error!("Invalid socket name provided in WAYLAND_SOCKET"),
-            ConnectError::XdgRuntimeDirNotSet => error!("XDG_RUNTIME_DIR must be set"),
-            ConnectError::InvalidFd => error!("Invalid socket provided in WAYLAND_SOCKET")
-        }
-        exit(1);
-    });
-    let globals = GlobalManager::new_with_cb(
-        &display,
-        global_filter!(
-            [
-                wl_output::WlOutput,
-                wayland_obj::WL_OUTPUT_VERSION,
-                wayland_obj::WlOutputManager {}
-            ],
-            [
-                wl_compositor::WlCompositor,
-                wayland_obj::WL_COMPOSITOR_VERSION,
-                wayland_obj::WlCompositorManager {}
-            ],
-            [
-                wl_shm::WlShm,
-                wayland_obj::WL_SHM_VERSION,
-                wayland_obj::WlShmManager {}
-            ]
-        )
-    );
-    event_queue.sync_roundtrip().unwrap();
-
-    globals
-        .instantiate_exact(wayland_obj::XDG_WM_BASE_VERSION, wayland_obj::xdg_shell_init)
-        .unwrap_or_else(|err| {
-            match err {
-                GlobalError::Missing => {
-                    error!(
-                        "Missing xdg_wm_base global (version {})",
-                        wayland_obj::XDG_WM_BASE_VERSION
-                    );
-                    error!("Your compositor doesn't support the xdg shell protocol");
-                    error!("This protocol is necessary for Awesome to function");
-                },
-                GlobalError::VersionTooLow(version) => {
-                    error!(
-                        "Got xdg_wm_base version {}, expected version {}",
-                        version,
-                        wayland_obj::XDG_WM_BASE_VERSION
-                    );
-                    error!(
-                        "Your compositor doesn't support version {} \
-                         of the xdg shell protocol",
-                        wayland_obj::XDG_WM_BASE_VERSION
-                    );
-                    error!("Ensure your compositor is up to date");
-                }
-            }
-            exit(1);
-        });
+fn run_wayland(display: Display, event_queue: &mut EventQueue) -> (Display, GlobalManager) {
+    let globals = GlobalManager::new_with_cb(&display, wayland_obj::global_callback);
 
     event_queue.sync_roundtrip().unwrap();
-    (display, event_queue, globals)
+
+    // TODO(ried): Check that all required protocols can be used?
+
+    event_queue.sync_roundtrip().unwrap();
+    (display, globals)
 }
 
 /// Sets up the glib main loop to call back into Rust whenever the
@@ -442,6 +403,6 @@ fn init_logs() {
 
 /// Handler for SIGINT signal
 extern "C" fn sig_handle(_: nix::libc::c_int) {
-    lua::terminate();
+    terminate();
     exit(130);
 }

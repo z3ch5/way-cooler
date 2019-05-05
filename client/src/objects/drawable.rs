@@ -1,11 +1,10 @@
 //! A wrapper around a Cairo image surface.
 
-use std::{default::Default, fs::File, io::Write};
+use std::default::Default;
 
 use cairo::{Format, ImageSurface};
 use glib::translate::ToGlibPtr;
-use rlua::{self, LightUserData, Table, UserData, UserDataMethods, Value};
-use tempfile;
+use rlua::{self, Context, LightUserData, Table, UserData, UserDataMethods, Value};
 
 use crate::area::{Area, Origin, Size};
 use crate::common::{
@@ -13,29 +12,28 @@ use crate::common::{
     object::{self, Object},
     property::Property
 };
-use crate::wayland_obj::{self, XdgToplevel};
+use crate::wayland_obj::{create_buffer, Buffer};
 
-#[derive(Debug)]
+use super::drawin::Drawin;
+
 pub struct DrawableState {
-    temp_file: File,
-    wayland_shell: Option<XdgToplevel>,
-    pub surface: Option<ImageSurface>,
+    // wayland_shell: Option<LayerSurface>,
+    surface: Option<ImageSurface>,
     geo: Area,
     // TODO Use this to determine whether we draw this or not
-    refreshed: bool
+    refreshed: bool,
+    buffer: Option<Buffer>
 }
 
 pub type Drawable<'lua> = Object<'lua, DrawableState>;
 
 impl Default for DrawableState {
     fn default() -> Self {
-        let temp_file = tempfile::tempfile().expect("Could not make a temp file for the buffer");
         DrawableState {
-            temp_file,
-            wayland_shell: None,
             surface: None,
             geo: Area::default(),
-            refreshed: false
+            refreshed: false,
+            buffer: None
         }
     }
 }
@@ -58,6 +56,7 @@ impl<'lua> Drawable<'lua> {
 
     pub fn get_surface(&self) -> rlua::Result<Value<'lua>> {
         let drawable = self.state()?;
+        trace!("get_surface -> {}", drawable.surface.is_some());
         Ok(match drawable.surface {
             None => Value::Nil,
             Some(ref image) => {
@@ -79,55 +78,60 @@ impl<'lua> Drawable<'lua> {
     /// Sets the geometry, and allocates a new surface.
     pub fn set_geometry(&mut self, lua: rlua::Context<'lua>, geometry: Area) -> rlua::Result<()> {
         use rlua::Error::RuntimeError;
-        let obj_clone = self.clone();
         let mut drawable = self.state_mut()?;
         let size_changed = drawable.geo != geometry;
         drawable.geo = geometry;
         if size_changed {
-            drawable.refreshed = false;
             drawable.surface = None;
-            drawable.wayland_shell = Some(
-                wayland_obj::create_xdg_toplevel(None)
-                    .expect("Could not construct an xdg toplevel for a drawable")
-            );
-            let size: Size = geometry.size;
-
-            if size.width > 0 && size.height > 0 {
-                let temp_file = tempfile::tempfile().expect("Could not make new temp file");
-                temp_file
-                    .set_len(size.width as u64 * size.height as u64 * 4)
-                    .expect("Could not set file length");
-                drawable.surface = Some(
-                    ImageSurface::create(Format::ARgb32, size.width as i32, size.height as i32)
-                        .map_err(|err| RuntimeError(format!("Could not allocate {:?}", err)))?
-                );
-                {
-                    let shell = drawable.wayland_shell.as_mut().unwrap();
-                    shell.set_size(size);
-                    shell
-                        .set_surface(&temp_file, size)
-                        .map_err(|_| RuntimeError(format!("Could not set surface for drawable")))?;
-                }
-                drawable.temp_file = temp_file;
-                Object::emit_signal(lua, &obj_clone, "property::surface".into(), Value::Nil)?;
-            }
+            drawable.refreshed = false;
         }
+        let size: Size = geometry.size;
+
+        if size_changed && size.width > 0 && size.height > 0 {
+            drawable.surface = Some(
+                ImageSurface::create(Format::ARgb32, size.width as i32, size.height as i32)
+                    .map_err(|err| RuntimeError(format!("Could not allocate {:?}", err)))?
+            );
+
+            drawable.buffer = Some(create_buffer(size).expect("Could not create buffer"));
+        }
+        drop(drawable);
+        // TODO(ried): conditionally emit signals only for changed properties
+        Object::emit_signal(lua, self, "property::surface", Value::Nil)?;
+        Object::emit_signal(lua, self, "property::geometry", Value::Nil)?;
+        Object::emit_signal(lua, self, "property::x", Value::Nil)?;
+        Object::emit_signal(lua, self, "property::y", Value::Nil)?;
+        Object::emit_signal(lua, self, "property::width", Value::Nil)?;
+        Object::emit_signal(lua, self, "property::height", Value::Nil)?;
         Ok(())
     }
 
     /// Signals that the drawable's surface was updated.
-    pub fn refresh(&mut self) -> rlua::Result<()> {
-        let mut drawable = self.state_mut()?;
-        let drawable = &mut *drawable;
-        if let Some(data) = drawable.surface.as_mut().map(get_data) {
-            drawable
-                .temp_file
-                .write(&*data)
-                .expect("Could not write data to buffer");
-            drawable.temp_file.flush().expect("Could not flush buffer");
+    pub fn refresh(&mut self, _lua: Context) -> rlua::Result<()> {
+        trace!("drawable::refresh");
+        if self.state()?.refreshed {
+            warn!("Drawable is already refreshed. Skipping work");
+            return Ok(());
+        }
+
+        {
+            let mut state = self.state_mut()?;
+            let drawable = &mut *state;
+            if let Some(data) = drawable.surface.as_ref().map(get_data) {
+                drawable.buffer.as_mut().expect("No buffer available").write(data);
+            }
             drawable.refreshed = true;
         }
-        Ok(())
+
+        let geo = self.state()?.geo;
+
+        error!("calling callback");
+        let res = self
+            .get_associated_data::<Drawin>("drawin")?
+            .refresh_pixmap(self.state()?.buffer.as_ref().unwrap(), geo);
+
+        info!("callback done");
+        res
     }
 }
 
@@ -139,7 +143,6 @@ impl UserData for DrawableState {
 
 pub fn init(lua: rlua::Context) -> rlua::Result<Class<DrawableState>> {
     Class::<DrawableState>::builder(lua, "drawable", None)?
-        .method("geometry".into(), lua.create_function(geometry)?)?
         .property(Property::new(
             "surface".into(),
             None,
@@ -166,12 +169,12 @@ fn geometry<'lua>(lua: rlua::Context<'lua>, drawable: Drawable<'lua>) -> rlua::R
     Ok(table)
 }
 
-fn refresh<'lua>(_: rlua::Context<'lua>, mut drawable: Drawable<'lua>) -> rlua::Result<()> {
-    drawable.refresh()
+fn refresh<'lua>(lua: Context<'lua>, mut drawable: Drawable<'lua>) -> rlua::Result<()> {
+    drawable.refresh(lua)
 }
 
 /// Get the data associated with the ImageSurface.
-fn get_data(surface: &mut ImageSurface) -> &[u8] {
+fn get_data(surface: &ImageSurface) -> &[u8] {
     // NOTE This is safe to do because there's one thread.
     //
     // We know Lua is not modifying it because it's not running.

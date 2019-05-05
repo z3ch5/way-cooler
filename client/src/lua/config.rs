@@ -42,10 +42,7 @@ pub fn load_config(lua: Context, cmdline_config: Option<&str>) -> io::Result<(St
 }
 
 pub fn exec_config(lua: rlua::Context, file_name: &str, content: &str) -> rlua::Result<()> {
-    lua.load(content).set_name(file_name).unwrap().exec()?;
-    crate::lua::emit_refresh(lua);
-
-    Ok(())
+    lua.load(content).set_name(file_name).unwrap().exec()
 }
 
 /// Finds the configuration file in predefined locations and opens it for reading.

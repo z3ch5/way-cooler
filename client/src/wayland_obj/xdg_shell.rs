@@ -12,7 +12,7 @@ use wayland_protocols::xdg_shell::client::{
     xdg_wm_base::{self, XdgWmBase}
 };
 
-use crate::area::{Area, Origin, Size};
+use crate::area::{Area, Size};
 use crate::wayland_obj;
 
 /// The minimum version of the xdg_wm_base global to bind to.
@@ -132,10 +132,11 @@ where
 {
     let wl_surface = wayland_obj::create_surface()?;
     let xdg_surface = create_xdg_surface(&wl_surface)?;
-    if let Some(geometry) = geometry.into() {
-        let Origin { x, y } = geometry.origin;
-        let Size { width, height } = geometry.size;
-        xdg_surface.set_window_geometry(x, y, width as i32, height as i32);
+    if geometry.into().is_some() {
+        unimplemented!("set geometry after creation completed!");
+        // let Origin { x, y } = geometry.origin;
+        // let Size { width, height } = geometry.size;
+        // xdg_surface.set_window_geometry(x, y, width as i32, height as i32);
     }
 
     xdg_surface
