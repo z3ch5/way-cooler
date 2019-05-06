@@ -233,7 +233,7 @@ impl<'lua> Drawin<'lua> {
         Ok(())
     }
 
-    fn set_struts(&mut self, lua: rlua::Context<'lua>, struts: Margin) -> rlua::Result<()> {
+    fn set_struts(&mut self, _lua: rlua::Context<'lua>, struts: Margin) -> rlua::Result<()> {
         trace!("set_struts({:?})", struts);
         if struts == self.state()?.struts {
             return Ok(());
@@ -241,9 +241,10 @@ impl<'lua> Drawin<'lua> {
 
         self.state_mut()?.struts = struts;
 
-        // TODO(ried): emit screen change workarea event?
-        // TODO(ried): remove since awesome does not emit this event?
-        Object::emit_signal(lua, self, "property::struts", Value::Nil)?;
+        // TODO(ried): do something with the struts and emit screen change workarea event
+        if struts != Margin::default() {
+            warn!("Struts are not implemented, ignoring ({:?})", struts);
+        }
 
         Ok(())
     }
