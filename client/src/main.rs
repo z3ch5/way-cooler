@@ -242,7 +242,7 @@ fn main() {
         .unwrap_or_default()
         .collect::<Vec<_>>();
 
-    let (display, mut event_queue) = wayland_obj::init_wayland();
+    let (display, mut event_queue) = wayland_obj::init_wayland().unwrap_or_else(|_| std::process::exit(1));
     let (session_fd, system_fd) = dbus::connect().expect("Could not set up dbus connection");
     let config = matches.value_of("config");
     lua::run_awesome(&lib_paths, config);

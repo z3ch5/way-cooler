@@ -77,9 +77,10 @@ pub fn global_callback(event: GlobalEvent, registry: WlRegistry) {
     })
 }
 
-pub fn init_wayland() -> (Display, EventQueue) {
-    let (display, event_queue) = Display::connect_to_env().unwrap_or_else(|err| {
-        use std::{env, process::exit};
+// TODO(ried): improve error handling: return something
+pub fn init_wayland() -> Result<(Display, EventQueue), ()> {
+    let connection = Display::connect_to_env();
+    if let Err(err) = connection {
         use wayland_client::ConnectError::*;
         match err {
             NoWaylandLib => error!("Could not find Wayland library, is it installed and in PATH?"),
@@ -87,15 +88,17 @@ pub fn init_wayland() -> (Display, EventQueue) {
                 error!("Could not connect to Wayland server. Is it running?");
                 error!(
                     "WAYLAND_DISPLAY={}",
-                    env::var("WAYLAND_DISPLAY").unwrap_or_default()
+                    std::env::var("WAYLAND_DISPLAY").unwrap_or_default()
                 );
             },
             InvalidName => error!("Invalid socket name provided in WAYLAND_SOCKET"),
             XdgRuntimeDirNotSet => error!("XDG_RUNTIME_DIR must be set"),
             InvalidFd => error!("Invalid socket provided in WAYLAND_SOCKET")
         }
-        exit(1);
-    });
+        return Err(());
+    }
+
+    let (display, event_queue) = connection.unwrap();
 
     WAYLAND.with(|wayland| {
         let wayland = &mut wayland.borrow_mut();
@@ -103,7 +106,7 @@ pub fn init_wayland() -> (Display, EventQueue) {
         (*wayland).replace(way_man);
     });
 
-    (display, event_queue)
+    Ok((display, event_queue))
 }
 
 impl WaylandManager {
