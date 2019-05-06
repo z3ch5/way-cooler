@@ -115,7 +115,7 @@ impl WaylandManager {
         WaylandManager {
             compositor_manager: WlCompositorManager::default(),
             output_manager: WlOutputManager::new(output_handler),
-            seat_manager: WlSeatManager::new(),
+            seat_manager: WlSeatManager::default(),
             shell_manager: LayerShellManager::new(),
             shm_manager: WlShmManager::new()
         }
