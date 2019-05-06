@@ -28,7 +28,6 @@ impl Buffer {
 }
 
 impl AsRef<WlBuffer> for Buffer {
-    #[inline]
     fn as_ref(&self) -> &WlBuffer {
         &self.buffer
     }
