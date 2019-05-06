@@ -33,7 +33,7 @@ impl WlSeatManager {
 
 impl GlobalImplementor<WlSeat> for WlSeatManager {
     fn new_global(&mut self, new_seat: NewProxy<WlSeat>) -> WlSeat {
-        let seat = new_seat.implement(SeatHandler {}, Rc::new(RefCell::new(SeatData::new())));
+        let seat = new_seat.implement(WlSeatEventHandler, Rc::new(RefCell::new(SeatData::new())));
         if self.seat.replace(seat.clone()).is_some() {
             panic!("Seat already registered. Multiple seats are not supported");
         }
@@ -42,12 +42,10 @@ impl GlobalImplementor<WlSeat> for WlSeatManager {
     }
 }
 
-struct SeatHandler {}
-
-impl SeatHandler {}
+struct WlSeatEventHandler;
 
 #[allow(unused_variables)]
-impl protocol::EventHandler for SeatHandler {
+impl protocol::EventHandler for WlSeatEventHandler {
     fn capabilities(&mut self, object: WlSeat, capabilities: Capability) {
         seat_data(object.as_ref()).borrow_mut().capabilities = capabilities;
     }
