@@ -22,27 +22,16 @@ pub const DRAWINS_HANDLE: &'static str = "__drawins";
 
 #[derive(Default)]
 pub struct DrawinState {
-    // ontop: bool,
+    // Note that the drawable is stored in Lua.
+    // TODO WINDOW_OBJECT_HEADER??
     visible: bool,
-    // cursor: String,
-    // drawable : Drawable // NOTE: this is stored in lua!
     geometry: Area,
     /// Do we have a pending geometry change that still needs to be applied?
     geometry_dirty: bool,
-    // surface: Option<ImageSurface>, // TODO(ried): remove
 
-    // TODO WINDOW_OBJECT_HEADER??
-    surface: Option<LayerSurface>, // window : Window,
-    // frame_window : Window,
-    // opacity : double,
+    surface: Option<LayerSurface>,
     struts: Margin
 }
-// buttons : Vec<Button>,
-// border_needs_update : bool,
-// border_color : Color,
-// border_width : u16,
-// type : WindowType,
-// border_width_callback : Fn(_ , old_width : u16, new_width : u16)
 
 impl DrawinState {
     /// Update the geometry of this drawin and return the signals to be emitted.
