@@ -255,7 +255,7 @@ fn main() {
     // (awesome does not like running headless)
     LUA.with(|lua| {
         let lua = lua.borrow();
-        lua.context(|ctx| lua::emit_refresh(ctx));
+        lua.context(lua::emit_refresh);
     });
 
     enter_glib_loop();

@@ -57,6 +57,7 @@ impl Into<Area> for Size {
 }
 
 #[derive(Debug, Default, Clone, Copy, Eq, PartialEq, Ord, PartialOrd)]
+// negative values could be used for slide-out animations
 pub struct Margin {
     top: i32,
     right: i32,
@@ -88,15 +89,8 @@ impl<'lua> ToLua<'lua> for Margin {
 }
 
 impl<'lua> FromLua<'lua> for Margin {
-    fn from_lua(lua_value: rlua::Value<'lua>, _lua: rlua::Context<'lua>) -> rlua::Result<Self> {
-        if let rlua::Value::Table(table) = lua_value {
-            Margin::try_from(table)
-        } else {
-            Err(rlua::Error::FromLuaConversionError {
-                from: "something else",
-                to: "Margin",
-                message: Some(format!("got: {:?}", lua_value))
-            })
-        }
+    fn from_lua(lua_value: rlua::Value<'lua>, lua: rlua::Context<'lua>) -> rlua::Result<Self> {
+        let table = rlua::Table::from_lua(lua_value, lua)?;
+        Margin::try_from(table)
     }
 }

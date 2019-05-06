@@ -1,4 +1,5 @@
 use std::{cell::RefCell, rc::Rc};
+
 use wayland_client::{protocol::wl_seat as protocol, GlobalImplementor, NewProxy, Proxy};
 
 use protocol::{Capability, WlSeat};

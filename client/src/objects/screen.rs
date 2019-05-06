@@ -139,11 +139,7 @@ pub fn add_screen<'lua>(lua: rlua::Context<'lua>, screen: Screen<'lua>) -> rlua:
     screens.push(screen.clone().into());
     lua.set_named_registry_value(SCREENS_HANDLE, screens.to_lua(lua)?)?;
 
-    if let Err(err) = Class::emit_signal(lua, &screen.class()?, "added", screen) {
-        warn!("Error emitting screen::added event: {}", err);
-    }
-
-    Ok(())
+    Class::emit_signal(lua, &screen.class()?, "added", screen)
 }
 
 /// Find a screen based on the output.

@@ -144,7 +144,6 @@ impl LayerSurfaceState {
 
 struct LayerSurfaceEventHandler {}
 
-#[allow(unused_variables)]
 impl wlr_layer_surface::EventHandler for LayerSurfaceEventHandler {
     fn configure(&mut self, layer_surface: WlrLayerSurface, serial: u32, width: u32, height: u32) {
         info!("layer_surface::configure {}x{}", width, height);
@@ -157,7 +156,7 @@ impl wlr_layer_surface::EventHandler for LayerSurfaceEventHandler {
             state.wl_surface.commit();
         }
     }
-    fn closed(&mut self, layer_surface: WlrLayerSurface) {
+    fn closed(&mut self, _layer_surface: WlrLayerSurface) {
         unimplemented!();
     }
 }

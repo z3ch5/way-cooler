@@ -443,9 +443,6 @@ fn drawin_struts<'lua>(
     lua: Context<'lua>,
     (mut drawin, struts): (Drawin<'lua>, Option<Margin>)
 ) -> rlua::Result<Value<'lua>> {
-    // TODO: Implement this properly. Struts means this drawin reserves some space
-    // on the screen that it is visible on, shrinking the workarea in the
-    // specified directions.
     if let Some(struts) = struts {
         drawin.set_struts(lua, struts)?;
     }
