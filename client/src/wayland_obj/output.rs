@@ -8,7 +8,7 @@ use wayland_client::{
 };
 
 /// The minimum version of the wl_output global to bind to.
-pub(super) const WL_OUTPUT_VERSION: u32 = 2;
+pub const WL_OUTPUT_VERSION: u32 = 2;
 
 /// Wrapper around WlOutput.
 #[derive(Clone, Eq, PartialEq)]
@@ -27,7 +27,7 @@ impl OutputEventHandler for Fn(Output) {
 }
 
 // Provides new WlOutputs with an implementation.
-pub(super) struct WlOutputManager {
+pub struct WlOutputManager {
     handler: Rc<dyn OutputEventHandler>
 }
 

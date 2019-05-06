@@ -6,12 +6,12 @@ use wayland_client::{
 };
 
 /// The minimum version of the wl_compositor global to bind to.
-pub(super) const WL_COMPOSITOR_VERSION: u32 = 3;
+pub const WL_COMPOSITOR_VERSION: u32 = 3;
 
 pub type Surface = WlSurface;
 
 #[derive(Default)]
-pub(super) struct WlCompositorManager {
+pub struct WlCompositorManager {
     compositor: Option<WlCompositor>
 }
 

@@ -81,7 +81,7 @@ fn load_shims(lua: rlua::Context) {
     }
 }
 
-pub(crate) struct OutputHandler;
+pub struct OutputHandler;
 
 impl OutputHandler {
     fn with_lua<R>(func: impl FnOnce(Context) -> R) -> R {

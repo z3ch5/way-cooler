@@ -14,7 +14,7 @@ use crate::area::Size;
 
 // TODO(ried): the WlBuffer internal should be internal and Buffer should be Clone
 pub struct Buffer {
-    pub(crate) buffer: WlBuffer,
+    pub buffer: WlBuffer,
     shared_memory: File
 }
 
@@ -34,9 +34,9 @@ impl AsRef<WlBuffer> for Buffer {
 }
 
 /// The minimum version of the wl_shm global to bind to.
-pub(crate) const WL_SHM_VERSION: u32 = 1;
+pub const WL_SHM_VERSION: u32 = 1;
 
-pub(crate) struct WlShmManager {
+pub struct WlShmManager {
     shm: Option<WlShm>
 }
 

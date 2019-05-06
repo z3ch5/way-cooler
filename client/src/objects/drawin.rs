@@ -108,7 +108,7 @@ impl<'lua> Drawin<'lua> {
         Ok(drawin)
     }
 
-    pub(crate) fn refresh_pixmap(&mut self, buffer: &Buffer, geometry: Area) -> rlua::Result<()> {
+    pub fn refresh_pixmap(&mut self, buffer: &Buffer, geometry: Area) -> rlua::Result<()> {
         {
             let mut state = self.state_mut()?;
             let shell = state.surface.as_mut().unwrap();
