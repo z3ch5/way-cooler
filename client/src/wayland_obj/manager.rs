@@ -99,7 +99,7 @@ pub fn init_wayland() -> (Display, EventQueue) {
 
     WAYLAND.with(|wayland| {
         let wayland = &mut wayland.borrow_mut();
-        let way_man = WaylandManager::new(crate::lua::WaylandHandler {});
+        let way_man = WaylandManager::new(crate::lua::OutputHandler);
         (*wayland).replace(way_man);
     });
 
@@ -107,14 +107,11 @@ pub fn init_wayland() -> (Display, EventQueue) {
 }
 
 impl WaylandManager {
-    pub fn new<T>(handler: T) -> Self
-    where
-        T: OutputEventHandler + 'static
-    {
-        let handler = Rc::new(handler);
+    pub fn new(output_handler: impl OutputEventHandler + 'static) -> Self {
+        let output_handler = Rc::new(output_handler);
         WaylandManager {
             compositor_manager: WlCompositorManager::default(),
-            output_manager: WlOutputManager::new(handler),
+            output_manager: WlOutputManager::new(output_handler),
             seat_manager: WlSeatManager::new(),
             shell_manager: LayerShellManager::new(),
             shm_manager: WlShmManager::new()

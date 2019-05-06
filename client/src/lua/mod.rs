@@ -81,15 +81,15 @@ fn load_shims(lua: rlua::Context) {
     }
 }
 
-pub struct WaylandHandler {}
+pub(crate) struct OutputHandler;
 
-impl WaylandHandler {
+impl OutputHandler {
     fn with_lua<R>(func: impl FnOnce(Context) -> R) -> R {
         LUA.with(|lua| lua.borrow().context(|ctx| func(ctx)))
     }
 }
 
-impl crate::wayland_obj::OutputEventHandler for WaylandHandler {
+impl crate::wayland_obj::OutputEventHandler for OutputHandler {
     fn output_changed(&self, output: crate::wayland_obj::Output) {
         Self::with_lua(|lua| {
             use crate::area::{Area, Origin, Size};
