@@ -2,8 +2,8 @@ use std::{cell::RefCell, rc::Rc};
 
 use wayland_client::{protocol::wl_buffer::WlBuffer, GlobalImplementor, NewProxy, Proxy};
 
-pub use wayland_protocols::wlr::unstable::layer_shell::v1::client::{
-    zwlr_layer_shell_v1::{self as wlr_layer_shell, Layer, ZwlrLayerShellV1 as WlrLayerShell},
+pub(super) use wayland_protocols::wlr::unstable::layer_shell::v1::client::{
+    zwlr_layer_shell_v1::{Layer, ZwlrLayerShellV1 as WlrLayerShell},
     zwlr_layer_surface_v1::{self as wlr_layer_surface, ZwlrLayerSurfaceV1 as WlrLayerSurface}
 };
 
@@ -12,10 +12,10 @@ use crate::area::{Origin, Size};
 use super::{Buffer, Output, Surface};
 
 /// The minimum version of the wl_layer_shell protocol to bind to.
-pub(crate) const WLR_LAYER_SHELL_VERSION: u32 = 1;
+pub(super) const WLR_LAYER_SHELL_VERSION: u32 = 1;
 
 /// LayerShell
-pub(crate) struct LayerShellManager {
+pub(super) struct LayerShellManager {
     shell: Option<WlrLayerShell>
 }
 

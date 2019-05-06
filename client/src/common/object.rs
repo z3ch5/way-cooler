@@ -206,7 +206,7 @@ impl<'lua, S: ObjectStateType> Object<'lua, S> {
 
 /// Signal methods that will be provided on the lua end
 impl<'lua, S: ObjectStateType> Object<'lua, S> {
-    pub(crate) fn connect_signal(
+    fn connect_signal(
         lua: rlua::Context<'lua>,
         obj: &Object<'lua, S>,
         name: &str,
@@ -215,15 +215,11 @@ impl<'lua, S: ObjectStateType> Object<'lua, S> {
         signal::connect_signals(lua, obj.signals()?, name, &[func])
     }
 
-    pub(crate) fn disconnect_signal(
-        lua: rlua::Context<'lua>,
-        obj: &Object<'lua, S>,
-        name: &str
-    ) -> rlua::Result<()> {
+    fn disconnect_signal(lua: rlua::Context<'lua>, obj: &Object<'lua, S>, name: &str) -> rlua::Result<()> {
         signal::disconnect_signals(lua, obj.signals()?, name)
     }
 
-    pub(crate) fn emit_signal<A>(
+    pub fn emit_signal<A>(
         lua: rlua::Context<'lua>,
         obj: &Object<'lua, S>,
         name: &str,

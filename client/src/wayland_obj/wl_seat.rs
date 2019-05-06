@@ -5,10 +5,10 @@ use wayland_client::{protocol::wl_seat as protocol, GlobalImplementor, NewProxy,
 use protocol::{Capability, WlSeat};
 
 /// The minimum version of the wl_seat global to bind to.
-pub(crate) const WL_SEAT_VERSION: u32 = 1;
+pub(super) const WL_SEAT_VERSION: u32 = 1;
 
 #[derive(Debug)]
-pub(crate) struct SeatData {
+pub(super) struct SeatData {
     capabilities: Capability,
     name: String
 }
@@ -22,7 +22,7 @@ impl SeatData {
     }
 }
 
-pub(crate) struct WlSeatManager {
+pub(super) struct WlSeatManager {
     seat: Option<WlSeat>
 }
 

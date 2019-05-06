@@ -110,7 +110,7 @@ pub fn init_wayland() -> Result<(Display, EventQueue), ()> {
 }
 
 impl WaylandManager {
-    pub fn new(output_handler: impl OutputEventHandler + 'static) -> Self {
+    fn new(output_handler: impl OutputEventHandler + 'static) -> Self {
         let output_handler = Rc::new(output_handler);
         WaylandManager {
             compositor_manager: WlCompositorManager::default(),
