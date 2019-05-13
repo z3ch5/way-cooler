@@ -146,7 +146,7 @@ static void wc_render_view(struct wlr_surface* surface,
 	ox += view->x + sx, oy += view->y + sy;
 
 	wc_render_surface(surface, damage, output, rdata->renderer,
-			rdata->when, sx, sy, ox, oy);
+			rdata->when, sx, sy, view->x, view->y);
 }
 
 static void wc_render_layer(struct wlr_surface* surface,
