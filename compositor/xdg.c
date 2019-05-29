@@ -22,7 +22,7 @@ static void wc_xdg_surface_map(struct wl_listener* listener, void* data) {
 		wc_view_get_output(view->server->output_layout, view);
 	if (output != NULL) {
 		output_damage_surface(output, view->xdg_surface->surface,
-				view->x, view->y);
+				view->x - output->output->lx, view->y - output->output->ly);
 	}
 }
 
@@ -34,7 +34,7 @@ static void wc_xdg_surface_unmap(struct wl_listener* listener, void* data) {
 
 	if (output != NULL) {
 		output_damage_surface(output, view->xdg_surface->surface,
-				view->x, view->y);
+				view->x - output->output->lx, view->y - output->output->ly);
 	}
 }
 
@@ -51,7 +51,7 @@ static void wc_xdg_surface_commit(struct wl_listener* listener, void* data) {
 
 	if (output) {
 		output_damage_surface(output, view->xdg_surface->surface,
-				view->x, view->y);
+				view->x - output->output->lx, view->y - output->output->ly);
 	}
 }
 

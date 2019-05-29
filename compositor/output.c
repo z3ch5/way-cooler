@@ -56,7 +56,7 @@ static void damage_surface_iterator(struct wlr_surface* surface,
 	};
 	wlr_output_damage_add_box(output->damage, &surface_area);
 	if (WC_DEBUG) {
-		wlr_log(WLR_DEBUG, "New damage whole => x: %d, y: %d, width: %d, height: %d",
+		wlr_log(WLR_DEBUG, "New damage whole => x: %f, y: %f, width: %f, height: %f",
 				surface_area.x, surface_area.y, surface_area.width, surface_area.height);
 	}
 }
@@ -146,7 +146,7 @@ static void wc_render_view(struct wlr_surface* surface,
 	ox += view->x + sx, oy += view->y + sy;
 
 	wc_render_surface(surface, damage, output, rdata->renderer,
-			rdata->when, sx, sy, view->x, view->y);
+			rdata->when, sx, sy, ox, oy);
 }
 
 static void wc_render_layer(struct wlr_surface* surface,

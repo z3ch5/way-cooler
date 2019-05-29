@@ -19,8 +19,8 @@ struct wc_output* wc_view_get_output(struct wlr_output_layout* layout,
 	struct wlr_output* output = NULL;
 	switch (view->surface_type) {
 	case WC_XDG:
-		x = view->xdg_surface->geometry.x;
-		y = view->xdg_surface->geometry.y;
+		x = view->x;
+		y = view->y;
 		height = view->xdg_surface->geometry.height;
 		width = view->xdg_surface->geometry.width;
 	}

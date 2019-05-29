@@ -24,12 +24,14 @@ static void wc_process_motion(struct wc_server* server, uint32_t time) {
 	switch (server->cursor_mode) {
 	case WC_CURSOR_MOVE:
 		output_damage_surface(active_output->data, view->xdg_surface->surface,
-				view->x, view->y);
+				view->x - active_output->lx, view->y - active_output->ly);
 		view->x = wlr_cursor->x - server->grab_x;
 		view->y = wlr_cursor->y - server->grab_y;
 		output_damage_surface(active_output->data, view->xdg_surface->surface,
-				view->x, view->y);
+				view->x - active_output->lx, view->y - active_output->ly);
 		break;
+		// TODO Do we need to do a dameg calculation here?
+		// Relying on commit might leave artifacts from the previous position
 	case WC_CURSOR_RESIZE: {
 		double dx = wlr_cursor->x - server->grab_x;
 		double dy = wlr_cursor->y - server->grab_y;
