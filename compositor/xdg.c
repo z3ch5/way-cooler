@@ -16,25 +16,32 @@ static void wc_xdg_surface_map(struct wl_listener* listener, void* data) {
 	struct wc_view* view = wl_container_of(listener, view, map);
 	view->mapped = true;
 	wc_focus_view(view);
-	// TODO FIXME This can return null (and every other place).
-	// Ask on irc how to fix this up because it's broken
-	struct wc_output* output =
-		wc_view_get_output(view->server->output_layout, view);
-	if (output != NULL) {
-		output_damage_surface(output, view->xdg_surface->surface,
-				view->x - output->output->lx, view->y - output->output->ly);
+
+	struct wlr_output* outputs[4] = { 0 };
+	wc_view_get_outputs(view->server->output_layout, view, outputs);
+
+	for (int i = 0; i < 4; i++) {
+		struct wlr_output* output = outputs[i];
+		if (output) {
+			output_damage_surface(output->data, view->xdg_surface->surface,
+					view->x - output->lx, view->y - output->ly);
+		}
 	}
 }
 
 static void wc_xdg_surface_unmap(struct wl_listener* listener, void* data) {
 	struct wc_view* view = wl_container_of(listener, view, unmap);
 	view->mapped = false;
-	struct wc_output* output =
-		wc_view_get_output(view->server->output_layout, view);
 
-	if (output != NULL) {
-		output_damage_surface(output, view->xdg_surface->surface,
-				view->x - output->output->lx, view->y - output->output->ly);
+	struct wlr_output* outputs[4] = { 0 };
+	wc_view_get_outputs(view->server->output_layout, view, outputs);
+
+	for (int i = 0; i < 4; i++) {
+		struct wlr_output* output = outputs[i];
+		if (output) {
+			output_damage_surface(output->data, view->xdg_surface->surface,
+					view->x - output->lx, view->y - output->ly);
+		}
 	}
 }
 
@@ -46,12 +53,15 @@ static void wc_xdg_surface_commit(struct wl_listener* listener, void* data) {
 	}
 
 	// TODO Damage only what has changed
-	struct wc_output* output =
-		wc_view_get_output(view->server->output_layout, view);
+	struct wlr_output* outputs[4] = { 0 };
+	wc_view_get_outputs(view->server->output_layout, view, outputs);
 
-	if (output) {
-		output_damage_surface(output, view->xdg_surface->surface,
-				view->x - output->output->lx, view->y - output->output->ly);
+	for (int i = 0; i < 4; i++) {
+		struct wlr_output* output = outputs[i];
+		if (output) {
+			output_damage_surface(output->data, view->xdg_surface->surface,
+					view->x - output->lx, view->y - output->ly);
+		}
 	}
 }
 
