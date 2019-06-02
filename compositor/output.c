@@ -61,8 +61,8 @@ static void damage_surface_iterator(struct wlr_surface* surface,
 	}
 }
 
-void output_damage_surface(struct wc_output* output, struct wlr_surface* surface,
-		double ox, double oy) {
+void wc_output_damage_surface(struct wc_output* output,
+		struct wlr_surface* surface, double ox, double oy) {
 	struct wc_surface_damage_data damage_data = {
 		.output = output,
 		.ox = ox,

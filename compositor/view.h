@@ -23,6 +23,13 @@ struct wc_view {
 
 	bool mapped;
 	int x, y;
+	int width, height;
+
+	bool is_pending_geometry;
+	struct {
+		double x, y;
+		int width, height;
+	} pending_geometry;
 
 	// These variables are layer surface specific
 	struct wlr_box wc_layer_geo;

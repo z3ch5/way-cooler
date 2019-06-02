@@ -24,18 +24,21 @@ static void wc_process_motion(struct wc_server* server, uint32_t time) {
 		for (int i = 0; i < 4; i++) {
 			struct wlr_output* output = outputs[i];
 			if (output) {
-				output_damage_surface(output->data, view->xdg_surface->surface,
+				wc_output_damage_surface(
+						output->data, view->xdg_surface->surface,
 						view->x - output->lx, view->y - output->ly);
 			}
 		}
 
+		wc_view_get_outputs(view->server->output_layout, view, outputs);
 		view->x = wlr_cursor->x - server->grab_x;
 		view->y = wlr_cursor->y - server->grab_y;
 
 		for (int i = 0; i < 4; i++) {
 			struct wlr_output* output = outputs[i];
 			if (output) {
-				output_damage_surface(output->data, view->xdg_surface->surface,
+				wc_output_damage_surface(
+						output->data, view->xdg_surface->surface,
 						view->x - output->lx, view->y - output->ly);
 			}
 		}
@@ -68,9 +71,16 @@ static void wc_process_motion(struct wc_server* server, uint32_t time) {
 		} else if (server->resize_edges & WLR_EDGE_RIGHT) {
 			width += dx;
 		}
-		view->x = x;
-		view->y = y;
+
+		// TODO Check serial, if zero apply updates now.
 		wlr_xdg_toplevel_set_size(view->xdg_surface, width, height);
+
+		view->is_pending_geometry = true;
+		view->pending_geometry.x = x;
+		view->pending_geometry.y = y;
+		view->pending_geometry.width = width;
+		view->pending_geometry.height = height;
+
 		break;
 	}
 	case WC_CURSOR_PASSTHROUGH: {
