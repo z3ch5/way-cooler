@@ -116,7 +116,7 @@ static void wc_output_frame(struct wl_listener* listener, void* data) {
 	struct timespec now;
 	clock_gettime(CLOCK_MONOTONIC, &now);
 	//TODO wlr_output_attach_render(wlr_output, NULL);
-	if (!wlr_output_make_current(wlr_output, NULL)) {
+	if (!wlr_output_attach_render(wlr_output, NULL)) { //otherwise failed to compile in the new version of wlroots)
 		return;
 	}
 
@@ -164,7 +164,7 @@ static void wc_output_frame(struct wl_listener* listener, void* data) {
 
 	//TODO use wlr_output_commit(wlr_output);
 	wlr_renderer_end(renderer);
-	wlr_output_swap_buffers(wlr_output, NULL, NULL);
+	wlr_output_commit(wlr_output); //otherwise failed to compile with the new wlroots
 }
 
 static void wc_output_destroy(struct wl_listener* listener, void* data) {
